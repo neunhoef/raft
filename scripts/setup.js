@@ -2,17 +2,17 @@
   "use strict";
   var console = require("console"),
       db = require("org/arangodb").db,
-      logCollname = applicationContext.collectionName("log");
-      stateCollname = applicationContext.collectionName("state");
+      logCollName = applicationContext.collectionName("log"),
+      stateCollName = applicationContext.collectionName("state");
 
-  if (db._collection(logCollname) === null) {
-    var c = db._create(logCollname);
+  if (db._collection(logCollName) === null) {
+    var c = db._create(logCollName);
   } else if (applicationContext.isProduction) {
     console.warn("collection '%s' already exists. Leaving it untouched.", 
-                 logCollname);
+                 logCollName);
   }
-  if (db._collection(stateCollname) === null) {
-    var c = db._create(stateCollname);
+  if (db._collection(stateCollName) === null) {
+    var c = db._create(stateCollName);
     c.insert( { "_key": "root",
                 "state": "BOOT",
                 "term": 1,
@@ -20,6 +20,6 @@
                 "servers": [] } );
   } else if (applicationContext.isProduction) {
     console.warn("collection '%s' already exists. Leaving it untouched.", 
-                 stateCollname);
+                 stateCollName);
   }
 }());

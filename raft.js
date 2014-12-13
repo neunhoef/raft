@@ -29,5 +29,12 @@
     }
   });
 
+  require("internal").registerTask( {
+    id: "raft-heartbeat",
+    name: "raft-heartbeat",
+    offset: 0,
+    period: 1.0,  // every second
+    command: 'require("console").log("long live Raft")'
+  } );
 }());
 

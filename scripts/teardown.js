@@ -2,10 +2,10 @@
   "use strict";
 
   var db = require("org/arangodb").db,
-      logCollname = applicationContext.collectionName("log"),
-      logCollection = db._collection(logCollname);
-      stateCollname = applicationContext.collectionName("state"),
-      stateCollection = db._collection(stateCollname);
+      logCollName = applicationContext.collectionName("log"),
+      logCollection = db._collection(logCollName),
+      stateCollName = applicationContext.collectionName("state"),
+      stateCollection = db._collection(stateCollName);
 
   if (logCollection !== null) {
     logCollection.drop();
