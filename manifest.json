@@ -1,0 +1,21 @@
+{
+  "name": "raft",
+  "version": "0.1",
+  "description": "a Foxx app doing Raft",
+  "author": "Max Neunhöffer",
+  "license": "Apache 2 License",
+
+  "setup": "scripts/setup.js",
+
+  "controllers": {
+    "/": "raft.js"
+  },
+
+  "teardown": "scripts/teardown.js",
+
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ArangoDB/raft.git"
+  }
+
+}
