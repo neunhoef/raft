@@ -9,13 +9,6 @@
 // names stateCollName and logCollName which are assigned as variables
 // in the context where this function is parsed.
 
-function heartBeat() {
-  var db = require("internal").db;
-  var stateColl = db._collection(stateCollName);
-  var logColl = db._collection(logCollName);
-  var state = stateColl.document("root");
-}
-
 (function () {
   "use strict";
   var Foxx = require("org/arangodb/foxx"),
@@ -28,6 +21,8 @@ function heartBeat() {
   var logColl = applicationContext.collection("log");
   var stateCollName = applicationContext.collectionName("state");
   var stateColl = applicationContext.collection("state");
+
+  var raftQueue = Foxx.queues.create("raft");
 
   // Get an entry:
   controller.get('/getState', function (req, res) {
@@ -56,25 +51,39 @@ function heartBeat() {
 
   // Register a new follower in BOOT phase, as soon as the cluster is
   // complete we start:
-  controller.post('/newFollower', function (req, res) {
+  controller.post('/newServer', function (req, res) {
     var body = req.body();
     log("newFollower called: " + JSON.stringify(body));
+    var state = stateColl.document("root");
+    state.servers.push(body.endpoint);
+    stateColl.replace(state, state);
+    res.json({error:false});
   } );
     
-  try {
-    internal.unregisterTask("raft-heartbeat");
-  }
-  catch (e) {
-  }
-  require("internal").registerTask( {
-    id: "raft-heartbeat",
-    name: "raft-heartbeat",
-    offset: 0,
-    period: 1.0,  // every second
-    command: "var stateCollName = '" + stateCollName + "';" +
-             "var logCollName = '" + logCollName + "';" +
-             "(" + heartBeat.toString() + ")();"
+  // Start service:
+  controller.post('/start', function (req, res) {
+    var body = req.body();
+    log("start called: " + JSON.stringify(body));
+    var state = stateColl.document("root");
+    state.state = "FOLLOWER";
+    stateColl.replace(state, state);
+    res.json({error:false});
   } );
-  log("Have registered task raft-heartbeat");
+    
+  var heartBeat = function (number) {
+    var state = stateColl.document("root");
+    log("Heartbeat "+number+":" + JSON.stringify(state));
+    raftQueue.push("raft-heartbeat", number+1, 
+                   { delayUntil: Date.now() + 3000 });
+  };
+
+  Foxx.queues.registerJobType("raft-heartbeat", heartBeat);
+  log("Cleaning out queue...");
+  var l = raftQueue.all();
+  for (var i = 0; i < l.length; i++) {
+    raftQueue.delete(l[i]);
+  }
+  log("Scheduling job 1");
+  raftQueue.push("raft-heartbeat", 1, { delayUntil: Date.now() + 3000 });
 }());
 
