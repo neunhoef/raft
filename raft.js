@@ -37,6 +37,26 @@
     }
   });
 
+  // Initialisation:
+  controller.post('/init', function (req, res) {
+    var body = req.body();
+    log("/init called: " + JSON.stringify(body));
+    var state = stateColl.document("root");
+    state.servers = body.servers;
+    state.ownId = body.id;
+    stateColl.replace(state, state);
+    res.json({error:false});
+  } );
+
+  // Startup:
+  controller.get('/start', function (req, res) {
+    log("/start called.");
+    var state = stateColl.document("root");
+    state.state = "FOLLOWER";
+    state.lastHeartBeatSeen = Date.now();
+    stateColl.replace(state, state);
+    res.json({error:false});
+    
   // Answer to request vote RPC:
   controller.put('/requestVote', function (req, res) {
     var body = req.body();
@@ -49,30 +69,25 @@
     log("appendLog called: " + JSON.stringify(body));
   } );
 
-  // Register a new follower in BOOT phase, as soon as the cluster is
-  // complete we start:
-  controller.post('/newServer', function (req, res) {
-    var body = req.body();
-    log("newFollower called: " + JSON.stringify(body));
-    var state = stateColl.document("root");
-    state.servers.push(body.endpoint);
-    stateColl.replace(state, state);
-    res.json({error:false});
-  } );
-    
-  // Start service:
-  controller.post('/start', function (req, res) {
-    var body = req.body();
-    log("start called: " + JSON.stringify(body));
-    var state = stateColl.document("root");
-    state.state = "FOLLOWER";
-    stateColl.replace(state, state);
-    res.json({error:false});
-  } );
-    
   var heartBeat = function (number) {
     var state = stateColl.document("root");
     log("Heartbeat "+number+":" + JSON.stringify(state));
+    if (state.state !== "BOOT") {
+      if (state.state === "FOLLOWER" && 
+          Date.now() >= state.lastHeartBeatSeen + 10000) {
+        state.state = "CANDIDATE";
+        state.currentTerm = state.currentTerm + 1;
+        stateColl.replace(state, state);
+        for (i = 0; i < state.servers.length; i++) {
+          var server = state.servers[i];
+          var x = internal.download(server+"/requestVote",
+                                    { term: state.currentTerm,
+                                      candidateId: state.ownId,
+                                      lastLogEntry: state.lastLogEntry,
+                                      lastLogTerm: state.lastLogTerm });
+        }
+      }
+    }
     raftQueue.push("raft-heartbeat", number+1, 
                    { delayUntil: Date.now() + 3000 });
   };
